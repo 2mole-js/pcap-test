@@ -1,6 +1,7 @@
 #include <pcap.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <arpa/inet.h>
 #define ETHER_ADDR_LEN 6
 #define ETHERTYPE_IP 0x0800
 
@@ -66,7 +67,7 @@ void printMac(u_int8_t* m) {
 }
 
 void printIP(u_int32_t *ip){
-	printf("%03x.%03x.%03x.%03x",ip[0],ip[1],ip[2],ip[3]);
+	printf("%03d.%03d.%03d.%03d",ip[0],ip[1],ip[2],ip[3]);
 }
 
 
@@ -128,7 +129,7 @@ int main(int argc, char* argv[]) {
 		printf(" ");
 		printIP(ipv4_hdr->ip_dst);
 		printf("\n");
-		
+
 		// IP 출력 등등 나머지 캡처 내용들도 나오도록 하기
 	}
 
