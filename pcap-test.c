@@ -66,7 +66,7 @@ void printMac(u_int8_t* m) {
 	printf("%02x:%02x:%02x:%02x:%02x:%02x",m[0],m[1],m[2],m[3],m[4],m[5]);
 }
 
-void printIP(u_int32_t *ip){
+void printIP(u_int32_t* ip){
 	printf("%03d.%03d.%03d.%03d",ip[0],ip[1],ip[2],ip[3]);
 }
 
