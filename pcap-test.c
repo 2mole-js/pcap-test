@@ -66,10 +66,11 @@ void printMac(u_int8_t* m) {
 	printf("%02x:%02x:%02x:%02x:%02x:%02x",m[0],m[1],m[2],m[3],m[4],m[5]);
 }
 
-void printIP(u_int32_t* ip){
-	printf("%03d",ip);
-}
+void print_IP(struct in_addr *ip) {
 
+    uint32_t ipv4addr = ntohl(ip->s_addr);
+    printf("%u.%u.%u.%u", (ipv4addr >> 24), (ipv4addr >> 16) % 0x100, (ipv4addr >> 8) % 0x100, ipv4addr % 0x100);
+}
 
 void usage() {
 	printf("syntax: pcap-test <interface>\n");
@@ -121,13 +122,12 @@ int main(int argc, char* argv[]) {
 		printMac(eth_hdr->ether_dhost);
 		printf("\n");
 
-		if(ntohs(eth_hdr->ether_type!=ETHERTYPE_IP))
-				continue;
+		//if(ntohs(eth_hdr->ether_type!=ETHERTYPE_IP)) continue;
 
-		struct libnet_ipv4_hdr* ipv4_hdr=(struct libnet_ipv4_hdr *)packet;
-		printIP(ipv4_hdr->ip_src);
+		struct libnet_ipv4_hdr* ipv4_hdr=(struct libnet_ipv4_hdr *)(packet+sizeof(struct libnet_ethernet_hdr));
+		print_IP(&ipv4_hdr->ip_src);
 		printf(" ");
-		printIP(ipv4_hdr->ip_dst);
+		print_IP(&ipv4_hdr->ip_dst);
 		printf("\n");
 
 		// IP 출력 등등 나머지 캡처 내용들도 나오도록 하기
