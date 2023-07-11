@@ -4,7 +4,12 @@
 #include <arpa/inet.h>
 #define ETHER_ADDR_LEN 6
 #define ETHERTYPE_IP 0x0800
+#define PAYLOAD_DATA_LEN 10
 
+/*
+ *  Ethernet II header
+ *  Static header size: 14 bytes
+ */
 struct libnet_ethernet_hdr
 {
     u_int8_t  ether_dhost[ETHER_ADDR_LEN];/* destination ethernet address */
@@ -61,21 +66,78 @@ struct libnet_ipv4_hdr
     struct in_addr ip_src, ip_dst; /* source and dest address */
 };
 
+/*
+ *  TCP header
+ *  Transmission Control Protocol
+ *  Static header size: 20 bytes
+ */
+struct libnet_tcp_hdr
+{
+    u_int16_t th_sport;       /* source port */
+    u_int16_t th_dport;       /* destination port */
+    u_int32_t th_seq;          /* sequence number */
+    u_int32_t th_ack;          /* acknowledgement number */
+#if (LIBNET_LIL_ENDIAN)
+    u_int8_t th_x2:4,         /* (unused) */
+           th_off:4;        /* data offset */
+#endif
+#if (LIBNET_BIG_ENDIAN)
+    u_int8_t th_off:4,        /* data offset */
+           th_x2:4;         /* (unused) */
+#endif
+    u_int8_t  th_flags;       /* control flags */
+#ifndef TH_FIN
+#define TH_FIN    0x01      /* finished send data */
+#endif
+#ifndef TH_SYN
+#define TH_SYN    0x02      /* synchronize sequence numbers */
+#endif
+#ifndef TH_RST
+#define TH_RST    0x04      /* reset the connection */
+#endif
+#ifndef TH_PUSH
+#define TH_PUSH   0x08      /* push data to the app layer */
+#endif
+#ifndef TH_ACK
+#define TH_ACK    0x10      /* acknowledge */
+#endif
+#ifndef TH_URG
+#define TH_URG    0x20      /* urgent! */
+#endif
+#ifndef TH_ECE
+#define TH_ECE    0x40
+#endif
+#ifndef TH_CWR   
+#define TH_CWR    0x80
+#endif
+    u_int16_t th_win;         /* window */
+    u_int16_t th_sum;         /* checksum */
+    u_int16_t th_urp;         /* urgent pointer */
+};
 
 void printMac(u_int8_t* m) {
 	printf("%02x:%02x:%02x:%02x:%02x:%02x",m[0],m[1],m[2],m[3],m[4],m[5]);
 }
 
 void print_IP(struct in_addr *ip) {
-
     uint32_t ipv4addr = ntohl(ip->s_addr);
     printf("%u.%u.%u.%u", (ipv4addr >> 24), (ipv4addr >> 16) % 0x100, (ipv4addr >> 8) % 0x100, ipv4addr % 0x100);
 }
 
+void print_port(u_int8_t m){
+	printf("%u", ntohs(m));
+}
+void print_pldata(u_int8_t* Payload_Data){
+	    for (int i = 0; i < 10; i++) {
+	        printf("%02x", ntohs(Payload_Data[i]));
+	    };
+}
+	
 void usage() {
 	printf("syntax: pcap-test <interface>\n");
 	printf("sample: pcap-test wlan0\n");
 }
+
 
 typedef struct {
 	char* dev_;
@@ -114,23 +176,36 @@ int main(int argc, char* argv[]) {
 			printf("pcap_next_ex return %d(%s)\n", res, pcap_geterr(pcap));
 			break;
 		}
-		printf("%u bytes captured\n", header->caplen);
-
+		// data 추출
 		struct libnet_ethernet_hdr* eth_hdr=(struct libnet_ethernet_hdr *)packet;
-		printMac(eth_hdr->ether_shost);
-		printf(" ");
-		printMac(eth_hdr->ether_dhost);
-		printf("\n");
-
-		//if(ntohs(eth_hdr->ether_type!=ETHERTYPE_IP)) continue;
-
 		struct libnet_ipv4_hdr* ipv4_hdr=(struct libnet_ipv4_hdr *)(packet+sizeof(struct libnet_ethernet_hdr));
+		struct libnet_tcp_hdr* tcp_hdr=(struct libnet_tcp_hdr *)(packet+sizeof(struct libnet_ethernet_hdr)+sizeof(struct libnet_ipv4_hdr));
+		uint8_t* Payload_Data = (uint8_t*)tcp_hdr + sizeof(struct libnet_tcp_hdr);
+		// TCP 프로토콜 번호 6이 아닐경우 해당 패킷은 출력 안함
+		if (ipv4_hdr->ip_p != IPPROTO_TCP) {
+    		printf("Not TCP packet\n");
+    		continue;
+    	}
+    	if(ntohs(eth_hdr -> ether_type) != ETHERTYPE_IP) {
+            printf("This packet is not IPv4\n");
+            continue;
+        }
+		printf("%u bytes captured", header->caplen);
+		printf("\n Ethernet Source Address:\t");
+		printMac(eth_hdr->ether_shost);
+		printf("\n Ethernet Destination Address:\t");
+		printMac(eth_hdr->ether_dhost);
+		printf("\n IPv4 Source Address:\t\t");
 		print_IP(&ipv4_hdr->ip_src);
-		printf(" ");
+		printf("\n IPv4 Destination Address:\t");
 		print_IP(&ipv4_hdr->ip_dst);
-		printf("\n");
-
-		// IP 출력 등등 나머지 캡처 내용들도 나오도록 하기
+		printf("\n Tcp header Source Port:\t");
+		print_port(tcp_hdr->th_sport);
+		printf("\n Tcp header Destination Port:\t");
+		print_port(tcp_hdr->th_dport);
+		printf("\n Playload Data(MAX 10 Byte) :\t");
+	    print_pldata(Payload_Data);
+	    printf("\n");
 	}
 
 	pcap_close(pcap);
