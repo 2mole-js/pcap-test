@@ -1,7 +1,9 @@
 #include <pcap.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>				//for IPPROTO_TCP socket
 #define ETHER_ADDR_LEN 6
 #define ETHERTYPE_IP 0x0800
 #define PAYLOAD_DATA_LEN 10
@@ -124,13 +126,25 @@ void print_IP(struct in_addr *ip) {
     printf("%u.%u.%u.%u", (ipv4addr >> 24), (ipv4addr >> 16) % 0x100, (ipv4addr >> 8) % 0x100, ipv4addr % 0x100);
 }
 
-void print_port(u_int8_t m){
-	printf("%u", ntohs(m));
+void print_port(u_int16_t m){
+	printf("%d", ntohs(m));
 }
 void print_pldata(u_int8_t* Payload_Data){
-	    for (int i = 0; i < 10; i++) {
-	        printf("%02x", ntohs(Payload_Data[i]));
-	    };
+	int check_zero = 0;
+	for (int i = 0; i < 10; i++) {
+        if (Payload_Data[i] != 0x00) {
+            check_zero=1;
+            break;
+        }
+    }
+    if (check_zero == 0){
+    	printf("ZERO DATA");
+    	return;
+    }
+    
+	for (int i = 0; i < 10; i++) {
+	    printf("%02x ", Payload_Data[i]);
+	};
 }
 	
 void usage() {
@@ -181,7 +195,7 @@ int main(int argc, char* argv[]) {
 		struct libnet_ipv4_hdr* ipv4_hdr=(struct libnet_ipv4_hdr *)(packet+sizeof(struct libnet_ethernet_hdr));
 		struct libnet_tcp_hdr* tcp_hdr=(struct libnet_tcp_hdr *)(packet+sizeof(struct libnet_ethernet_hdr)+sizeof(struct libnet_ipv4_hdr));
 		uint8_t* Payload_Data = (uint8_t*)tcp_hdr + sizeof(struct libnet_tcp_hdr);
-		// TCP 프로토콜 번호 6이 아닐경우 해당 패킷은 출력 안함
+		// TCP 소캣 전처리기를 이용하여 프로토콜 번호 6이 아닐경우 해당 패킷은 출력 안함
 		if (ipv4_hdr->ip_p != IPPROTO_TCP) {
     		printf("Not TCP packet\n");
     		continue;
