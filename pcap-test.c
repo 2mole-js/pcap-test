@@ -129,12 +129,12 @@ void printMac(u_int8_t* m) {
 }
 
 void print_IP(struct in_addr *ip) {
-    uint32_t ipv4addr = ntohl(ip->s_addr);
+    uint32_t ipv4addr = ntohl(ip->s_addr);	//4(byte)data network -> host
     printf("%u.%u.%u.%u", (ipv4addr >> 24), (ipv4addr >> 16) % 0x100, (ipv4addr >> 8) % 0x100, ipv4addr % 0x100);
 }
 
 void print_port(u_int16_t m){
-	printf("%d", ntohs(m));
+	printf("%d", ntohs(m));			//2(byte)data network -> host
 }
 void print_pldata(u_int8_t* Payload_Data, int payload_data_LEN){
     if (payload_data_LEN == 0){
@@ -190,12 +190,17 @@ int main(int argc, char* argv[]) {
 			printf("pcap_next_ex return %d(%s)\n", res, pcap_geterr(pcap));
 			break;
 		}
-		// data 추출
+		// get ethernet_hdr 
 		struct libnet_ethernet_hdr* eth_hdr=(struct libnet_ethernet_hdr *)packet;
+		// get ipv4_hdr 
 		struct libnet_ipv4_hdr* ipv4_hdr=(struct libnet_ipv4_hdr *)(packet+sizeof(struct libnet_ethernet_hdr));
+		// get tcp_hdr (struct libnet_ipv4_hdr)len = ipv4_hdr*4
 		struct libnet_tcp_hdr* tcp_hdr=(struct libnet_tcp_hdr *)(packet+sizeof(struct libnet_ethernet_hdr)+sizeof(struct libnet_ipv4_hdr));
+		// tcp_hdr_len = tcp_hdr*4 
 		u_int16_t tcp_hdr_len = tcp_hdr->th_off * 4;
+		// get payload_hdr
 		struct libnet_Payload_hdr*  pl_Data= (struct libnet_Payload_hdr*)(packet+sizeof(struct libnet_ethernet_hdr)+sizeof(struct libnet_ipv4_hdr)+tcp_hdr_len);
+		// get payload_data_len 
 		int payload_data_LEN=ntohs(ipv4_hdr->ip_len) - (ipv4_hdr->ip_hl * 4 + tcp_hdr->th_off * 4);
 		// TCP 소캣 전처리기를 이용하여 프로토콜 번호 6이 아닐경우 해당 패킷은 출력 안함
 		if (ipv4_hdr->ip_p != IPPROTO_TCP) {
